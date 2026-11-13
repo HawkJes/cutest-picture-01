@@ -1,8 +1,14 @@
-# cutest-picture-01: the entry is a picture vendored in this repository.
-# The program copies it to the output path, byte for byte, every run,
-# then checks the copy's sha256 against the vendored file so a
-# truncated or corrupted write can never pass silently.
-# Standard library only, no network. Run it with:
+# cutest-picture-01 v4 — "baby fawn with a butterfly on its nose".
+#
+# The picture is vendored in this repo as entry.png. This program copies
+# that file to the output directory, byte for byte, and then proves the
+# copy is intact by comparing the sha256 of the copy against the sha256
+# of the vendored file. A truncated or altered write fails loudly here
+# instead of reaching the judge.
+#
+# Standard library only. No network, no clock, no randomness: two runs
+# produce byte-identical output.
+#
 #   mkdir -p out && MAKEFUN_OUTPUT_DIR=out python3 main.py
 
 import hashlib
@@ -11,26 +17,29 @@ import shutil
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SRC = HERE / "entry.png"
+VENDORED = HERE / "entry.png"
 
 
-def sha256_of(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def digest(path):
+    hasher = hashlib.sha256()
+    with open(path, "rb") as stream:
+        while True:
+            block = stream.read(65536)
+            if not block:
+                break
+            hasher.update(block)
+    return hasher.hexdigest()
 
 
 def main():
-    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    if not SRC.is_file():
-        raise FileNotFoundError(f"vendored picture missing: {SRC}")
-    dest = out_dir / "entry.png"
-    shutil.copyfile(SRC, dest)
-    if sha256_of(dest) != sha256_of(SRC):
-        raise ValueError("copied picture failed the byte self-check")
+    output_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if not VENDORED.is_file():
+        raise FileNotFoundError(f"vendored picture not found: {VENDORED}")
+    written = output_dir / "entry.png"
+    shutil.copyfile(VENDORED, written)
+    if digest(written) != digest(VENDORED):
+        raise ValueError("output failed the sha256 self-check")
 
 
 if __name__ == "__main__":
