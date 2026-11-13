@@ -18,6 +18,10 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 VENDORED = HERE / "entry.png"
+# Fingerprint of the vendored picture as verified on 2026-11-13: checking
+# the source itself (not just copy-vs-source) catches a corrupted or
+# swapped vendored file before it can reach the judge.
+EXPECTED_SHA256 = "1d6f9ee174a5355dddcb11e6fba005c8ede9fe3b04bedd01c1a4b649860ce976"
 
 
 def digest(path):
@@ -36,6 +40,8 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
     if not VENDORED.is_file():
         raise FileNotFoundError(f"vendored picture not found: {VENDORED}")
+    if digest(VENDORED) != EXPECTED_SHA256:
+        raise ValueError("vendored picture failed its sha256 fingerprint check")
     written = output_dir / "entry.png"
     shutil.copyfile(VENDORED, written)
     if digest(written) != digest(VENDORED):
